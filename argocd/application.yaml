@@ -9,7 +9,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://GITLAB_HOST/NAMESPACE/rsge.git   # remplacer
+    repoURL: http://192.168.229.130/root/app-test.git   # remplacer
     targetRevision: main
     path: k8s
 
