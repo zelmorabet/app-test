@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rsge-app
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://GITLAB_HOST/NAMESPACE/rsge.git   # remplacer
+    targetRevision: main
+    path: k8s
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: rsge
+
+  syncPolicy:
+    automated:
+      prune:     true   # supprime les ressources absentes du repo
+      selfHeal:  true   # resynchronise si l'état dévie
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rsge-frontend
+  namespace: rsge
+spec:
+  selector:
+    app: rsge-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
