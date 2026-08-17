@@ -1,0 +1,79 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
+  BACKEND_IMAGE:  $CI_REGISTRY_IMAGE/backend
+
+# ── Build & push frontend ─────────────────────────────────
+build-frontend:
+  stage: build
+  image: docker:26-alpine
+  services:
+    - docker:26-dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build
+        -t "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA"
+        -t "$FRONTEND_IMAGE:latest"
+        ./frontend
+    - docker push "$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$FRONTEND_IMAGE:latest"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ── Build & push backend ──────────────────────────────────
+build-backend:
+  stage: build
+  image: docker:26-alpine
+  services:
+    - docker:26-dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build
+        -t "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA"
+        -t "$BACKEND_IMAGE:latest"
+        ./backend
+    - docker push "$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - docker push "$BACKEND_IMAGE:latest"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ── Mise à jour des manifests (GitOps) ───────────────────
+# ArgoCD détecte le commit et synchronise automatiquement
+update-manifests:
+  stage: deploy
+  image: alpine/git:latest
+  needs:
+    - build-frontend
+    - build-backend
+  before_script:
+    - git config --global user.email "ci-bot@gitlab.local"
+    - git config --global user.name  "GitLab CI Bot"
+    # Utilise CI_JOB_TOKEN pour pousser (activer "Token access" dans Paramètres > CI/CD > Token Access)
+    - git remote set-url origin
+        "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    - git fetch origin main
+    - git checkout main
+  script:
+    # Remplace le tag IMAGE_TAG dans les manifests
+    - >
+      sed -i
+      "s|REGISTRY_IMAGE/frontend:.*|${FRONTEND_IMAGE}:${CI_COMMIT_SHORT_SHA}|"
+      k8s/frontend/deployment.yaml
+    - >
+      sed -i
+      "s|REGISTRY_IMAGE/backend:.*|${BACKEND_IMAGE}:${CI_COMMIT_SHORT_SHA}|"
+      k8s/backend/deployment.yaml
+    - git add k8s/frontend/deployment.yaml k8s/backend/deployment.yaml
+    # [skip ci] évite de déclencher un nouveau pipeline en boucle
+    - >
+      git diff --cached --quiet ||
+      git commit -m "ci: deploy frontend/backend ${CI_COMMIT_SHORT_SHA} [skip ci]"
+    - git push origin main
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
