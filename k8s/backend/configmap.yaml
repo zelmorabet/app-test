@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rsge-backend-config
+  namespace: rsge
+data:
+  DB_HOST: "postgres-service"   # nom du Service PostgreSQL dans le cluster
+  DB_PORT: "5432"
+  DB_NAME: "enfants_db"
+  DB_USER: "postgres"
+  PORT:    "3001"

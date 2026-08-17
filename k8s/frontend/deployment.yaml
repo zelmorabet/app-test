@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rsge-frontend
+  namespace: rsge
+  labels:
+    app: rsge-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rsge-frontend
+  template:
+    metadata:
+      labels:
+        app: rsge-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: REGISTRY_IMAGE/frontend:IMAGE_TAG  # mis à jour par CI
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu:    "50m"
+              memory: "64Mi"
+            limits:
+              cpu:    "200m"
+              memory: "128Mi"
+      imagePullSecrets:
+        - name: gitlab-registry-secret
